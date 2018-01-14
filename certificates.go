@@ -2,18 +2,14 @@
 package pki
 
 import (
-	"crypto/x509"
-	"encoding/pem"
-
-	"crypto/x509/pkix"
-
+	"bytes"
 	"crypto"
-
-	"crypto/rand"
-
-	"crypto/rsa"
-
 	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 
 	"github.com/pkg/errors"
 )
@@ -129,4 +125,12 @@ func PrivateKeyToPem(key crypto.Signer, password []byte) ([]byte, error) {
 		Type:  unencryptedKeyType,
 		Bytes: keyData,
 	}), nil
+}
+
+// IsRootCACert tests whether a certificate is a root CA certificate by checking the
+// certificate is self-signed and validating the Basic Constraints, if present.
+//
+// WARNING: Do not use this function to determine whether to trust the certificate.
+func IsRootCACert(cert *x509.Certificate) bool {
+	return bytes.Equal(cert.RawSubject, cert.RawIssuer) && (!cert.BasicConstraintsValid || cert.IsCA)
 }

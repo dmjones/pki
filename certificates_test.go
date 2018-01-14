@@ -1,20 +1,16 @@
 package pki
 
 import (
-	"crypto/x509"
-	"encoding/pem"
-	"io/ioutil"
-	"testing"
-
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
-
-	"crypto/ecdsa"
-
-	"crypto/elliptic"
-
-	"crypto"
+	"crypto/x509"
+	"encoding/pem"
 	"io"
+	"io/ioutil"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,19 +20,14 @@ func TestCertificateToPem(t *testing.T) {
 	data, err := ioutil.ReadFile("testdata/cert.pem")
 	require.Nil(t, err)
 
-	block, rem := pem.Decode(data)
-	require.NotNil(t, block)
-	require.Len(t, rem, 0)
-
-	der := block.Bytes
-	cert, err := x509.ParseCertificate(der)
+	cert, err := ParsePemCertificate(data)
 	require.Nil(t, err)
 
 	result := CertificateToPem(cert)
 	require.EqualValues(t, data, result)
 }
 
-func TestPemToCertificate(t *testing.T) {
+func TestParsePemCertificate(t *testing.T) {
 	data, err := ioutil.ReadFile("testdata/cert.pem")
 	require.Nil(t, err)
 
@@ -167,4 +158,23 @@ func (badKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signa
 func TestPrivateKeyToPemBadKey(t *testing.T) {
 	_, err := PrivateKeyToPem(badKey(0), nil)
 	assert.NotNil(t, err)
+}
+
+func TestIsRootCACert(t *testing.T) {
+	cert := LoadTestCert(t, "GeoTrust_Primary_CA.pem")
+	require.True(t, IsRootCACert(cert))
+
+	cert = LoadTestCert(t, "cert.pem")
+
+	// Self-signed and doesn't have Basic Constraints
+	require.False(t, cert.BasicConstraintsValid)
+	require.True(t, IsRootCACert(cert))
+}
+
+func LoadTestCert(t *testing.T, name string) *x509.Certificate {
+	certPem, err := ioutil.ReadFile("testdata/" + name)
+	require.Nil(t, err)
+	cert, err := ParsePemCertificate(certPem)
+	require.Nil(t, err)
+	return cert
 }
